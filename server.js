@@ -10,10 +10,6 @@ server.use(cors());
 
 const PORT = process.env.PORT;
 
-server.get('/test', (req, res) => {
-    res.send('your server is working')
-})
-
 server.get('/location', (req, res) => {
     const locationData = require('./data/location.json');
     // console.log(locationData);
