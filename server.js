@@ -12,8 +12,6 @@ const PORT = process.env.PORT;
 
 server.get('/location', (req, res) => {
     const locationData = require('./data/location.json');
-    // console.log(locationData);
-    // console.log(locationData[0]);
     const locObj = new Location(locationData);
     res.send(locObj);
 })
@@ -25,9 +23,7 @@ server.get('/weather', (req, res) => {
     weatherData.data.forEach(element => {
         const weatherObj = new Weather(element);
         weather.push(weatherObj);
-
     })
-
     res.send(weather);
 })
 
@@ -44,8 +40,7 @@ function Location(geoData) {
 
 function Weather(data) {
     this.forecast = data.weather.description;
-    this.time = new Date (data.valid_date).toDateString();
-
+    this.time = new Date(data.valid_date).toDateString();
 }
 
 server.listen(PORT, () => {
