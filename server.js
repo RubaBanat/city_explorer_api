@@ -36,7 +36,7 @@ server.get('/weather', (req, res) => {
 })
 
 server.use('*', (req, res) => {
-    res.status(500gi).send('Sorry, something went wrong')
+    res.status(500).send('Sorry, something went wrong')
 })
 
 function Location(geoData) {
