@@ -44,7 +44,7 @@ function Location(geoData) {
 
 function Weather(data) {
     this.forecast = data.weather.description;
-    this.time = data.valid_date;
+    this.time = new Date (data.valid_date).toDateString();
 
 }
 
