@@ -1,6 +1,5 @@
 'use strict';
 
-
 const express = require('express');
 const cors = require('cors');
 const superagent = require('superagent');
@@ -53,17 +52,14 @@ function locData(city) {
 
 function handlerWeather(req, res) {
     let KEY = process.env.WEATHER_KEY;
-    // let weatherArr = [];
     let search_query = req.query.search_query;
     let url = `https://api.weatherbit.io/v2.0/forecast/daily?city=${search_query}&key=${KEY} `;
 
     superagent.get(url)
         .then(element => {
             let weatherData = element.body.data;
-            // console.log(weatherData);
             let weatherArr = weatherData.map(value => {
                 return new Weather(value);
-
             })
             res.status(200).send(weatherArr);
         })
@@ -76,7 +72,7 @@ function handlePark(req, res) {
     let key = process.env.PARK_KEY;
     const city = req.query.search_query;
     let url =  `https://developer.nps.gov/api/v1/parks?limit=10&q=${city}&api_key=${key}&limit=2`;
-    
+
     superagent.get(url)
         .then(parkData => {
             let parkArr = parkData.body.data.map(val => {
@@ -89,7 +85,6 @@ function handlePark(req, res) {
             res.status(500).send('Sorry something went wrong!!');
         })
 }
-
 
 function Location(city, geoData) {
     this.search_query = city;
