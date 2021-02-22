@@ -101,7 +101,7 @@ function Weather(day) {
 function Park(data) {
     this.name = data.name;
     this.address = Object.values(data.addresses[0]).join(' ');
-    this.fee = `0.00`;
+    this.fee = data.entranceFees[0].cost;
     this.description = data.description;
     this.url = data.url;
 }
