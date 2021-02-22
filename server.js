@@ -1,48 +1,114 @@
 'use strict';
 
+
 const express = require('express');
+const cors = require('cors');
+const superagent = require('superagent');
+
 require('dotenv').config();
 
-const cors = require('cors');
+const app = express();
+app.use(cors());
 
-const server = express();
-server.use(cors());
+const PORT = process.env.PORT || 3000;
 
-const PORT = process.env.PORT;
+app.get('/', handleHomeRoute);
+app.get('/location', handlerLocation);
+app.get('/weather', handlerWeather);
+app.get('/parks', handlePark);
+app.get('*', notFoundRouteHandler);
+app.use(errorHandler);
 
-server.get('/location', (req, res) => {
-    const locationData = require('./data/location.json');
-    const locObj = new Location(locationData);
-    res.send(locObj);
-})
-
-server.get('/weather', (req, res) => {
-    const weatherData = require('./data/weather.json');
-    console.log(weatherData);
-    let weather = [];
-    weatherData.data.forEach(element => {
-        const weatherObj = new Weather(element);
-        weather.push(weatherObj);
-    })
-    res.send(weather);
-})
-
-server.use('*', (req, res) => {
-    res.status(500).send('Sorry, something went wrong')
-})
-
-function Location(geoData) {
-    this.search_query = 'Lynnwood';
-    this.formatted_query = geoData[0].display_name;
-    this.latitude = geoData[0].lat;
-    this.longitude = geoData[0].lon;
+function handleHomeRoute(req, res) {
+    res.status(200).send('This is Home page!');
 }
 
-function Weather(data) {
-    this.forecast = data.weather.description;
-    this.time = new Date(data.valid_date).toDateString();
+function notFoundRouteHandler(req, res) {
+    res.status(404).send('Not Found');
 }
 
-server.listen(PORT, () => {
-    console.log(`Listening on PORT ${PORT}`);
-})
+function errorHandler(error, req, res) {
+    res.status(500).send(error);
+}
+
+function handlerLocation(req, res) {
+
+    let city = req.query.city;
+    locData(city)
+        .then(locationData => {
+            res.status(200).json(locationData);
+        })
+}
+
+function locData(city) {
+    let key = process.env.LOCATION_KEY;
+    let url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json`;
+
+    return superagent.get(url)
+        .then(data => {
+            let locationData = new Location(city, data.body[0]);
+            return locationData;
+        })
+}
+
+function handlerWeather(req, res) {
+    let KEY = process.env.WEATHER_KEY;
+    // let weatherArr = [];
+    let search_query = req.query.search_query;
+    let url = `https://api.weatherbit.io/v2.0/forecast/daily?city=${search_query}&key=${KEY} `;
+
+    superagent.get(url)
+        .then(element => {
+            let weatherData = element.body.data;
+            // console.log(weatherData);
+            let weatherArr = weatherData.map(value => {
+                return new Weather(value);
+
+            })
+            res.status(200).send(weatherArr);
+        })
+        .catch(() => {
+            res.status(500).send('Sorry something went really wrong!!');
+        })
+}
+
+function handlePark(req, res) {
+    let key = process.env.PARK_KEY;
+    const city = req.query.search_query;
+    let url =  `https://developer.nps.gov/api/v1/parks?limit=10&q=${city}&api_key=${key}&limit=2`;
+    
+    superagent.get(url)
+        .then(parkData => {
+            let parkArr = parkData.body.data.map(val => {
+                console.log(new Park(val));
+                return new Park(val);
+            })
+            res.status(200).send(parkArr);
+        })
+        .catch(() => {
+            res.status(500).send('Sorry something went wrong!!');
+        })
+}
+
+
+function Location(city, geoData) {
+    this.search_query = city;
+    this.formatted_query = geoData.display_name;
+    this.latitude = geoData.lat;
+    this.longitude = geoData.lon;
+}
+
+function Weather(day) {
+    this.forecast = day.weather.description;
+    this.time = new Date(day.valid_date).toDateString();
+}
+
+function Park(data) {
+    this.name = data.name;
+    this.address = Object.values(data.addresses[0]).join(' ');
+    this.fee = `0.00`;
+    this.description = data.description;
+    this.url = data.url;
+}
+
+app.listen(PORT, () => console.log(`App is listening on ${PORT}`));
