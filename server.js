@@ -3,6 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 const superagent = require('superagent');
+const pg = require('pg');
 
 require('dotenv').config();
 
@@ -10,6 +11,8 @@ const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
+const client = new pg.Client(process.env.DATABASE_URL);
+// const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 app.get('/', handleHomeRoute);
 app.get('/location', handlerLocation);
@@ -31,24 +34,38 @@ function errorHandler(error, req, res) {
 }
 
 function handlerLocation(req, res) {
-
     let city = req.query.city;
-    locData(city)
-        .then(locationData => {
-            res.status(200).json(locationData);
-        })
-}
-
-function locData(city) {
     let key = process.env.LOCATION_KEY;
     let url = `https://eu1.locationiq.com/v1/search.php?key=${key}&q=${city}&format=json`;
-
-    return superagent.get(url)
-        .then(data => {
-            let locationData = new Location(city, data.body[0]);
-            return locationData;
+    const SQL = 'SELECT * FROM locations WHERE search_query = $1';
+    const safeData = [city];
+    client.query(SQL, safeData)
+        .then((result) => {
+            if (result.rows.length > 0) {
+                res.status(200).json(result.rows[0]);
+                console.log('FROM DATABASE', result.rows[0]);
+            } else {
+                superagent(url)
+                    .then((data) => {
+                        console.log('FROM API');
+                        const geoData = data.body;
+                        const locationData = new Location(city, geoData);
+                        const SQL = `INSERT INTO locations (search_query , formatted_query ,latitude, longitude) VALUES($1,$2,$3,$4) RETURNING *`;
+                        const saveData = [
+                            locationData.search_query,
+                            locationData.formatted_query,
+                            locationData.latitude,
+                            locationData.longitude
+                        ];
+                        client.query(SQL, saveData).then((result) => {
+                            // console.log(result.rows);
+                            res.status(200).json(result.rows[0]);
+                        })
+                    })
+            }
         })
-}
+        .catch((error) => errorHandler(error, req, res));
+};
 
 function handlerWeather(req, res) {
     let KEY = process.env.WEATHER_KEY;
@@ -71,12 +88,11 @@ function handlerWeather(req, res) {
 function handlePark(req, res) {
     let key = process.env.PARK_KEY;
     let city = req.query.search_query;
-    let url =  `https://developer.nps.gov/api/v1/parks?limit=3&q=${city}&api_key=${key}`;
+    let url = `https://developer.nps.gov/api/v1/parks?limit=3&q=${city}&api_key=${key}`;
 
     superagent.get(url)
         .then(parkData => {
             let parkArr = parkData.body.data.map(val => {
-                console.log(new Park(val));
                 return new Park(val);
             })
             res.status(200).send(parkArr);
@@ -88,9 +104,9 @@ function handlePark(req, res) {
 
 function Location(city, geoData) {
     this.search_query = city;
-    this.formatted_query = geoData.display_name;
-    this.latitude = geoData.lat;
-    this.longitude = geoData.lon;
+    this.formatted_query = geoData[0].display_name;
+    this.latitude = geoData[0].lat;
+    this.longitude = geoData[0].lon;
 }
 
 function Weather(day) {
@@ -106,4 +122,10 @@ function Park(data) {
     this.url = data.url;
 }
 
-app.listen(PORT, () => console.log(`App is listening on ${PORT}`));
+client.connect()
+    .then(() => {
+        app.listen(PORT, () =>
+            console.log(`listening on ${PORT}`)
+        );
+    })
+
