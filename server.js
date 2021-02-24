@@ -11,8 +11,8 @@ const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
-// const client = new pg.Client(process.env.DATABASE_URL);
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const client = new pg.Client(process.env.DATABASE_URL);
+// const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 app.get('/', handleHomeRoute);
 app.get('/location', handlerLocation);
@@ -42,7 +42,7 @@ function handlerLocation(req, res) {
     client.query(SQL, safeData)
         .then((result) => {
             if (result.rows.length > 0) {
-                res.status(200).json(result.rows[0]);
+                res.status(200).send(result.rows[0]);
                 console.log('FROM DATABASE', result.rows[0]);
             } else {
                 superagent(url)
@@ -59,7 +59,7 @@ function handlerLocation(req, res) {
                         ];
                         client.query(SQL, saveData).then((result) => {
                             // console.log(result.rows);
-                            res.status(200).json(result.rows[0]);
+                            res.status(200).send(result.rows[0]);
                         })
                     })
             }
