@@ -11,13 +11,16 @@ const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
-// const client = new pg.Client(process.env.DATABASE_URL);
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const client = new pg.Client(process.env.DATABASE_URL);
+// const client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 app.get('/', handleHomeRoute);
 app.get('/location', handlerLocation);
 app.get('/weather', handlerWeather);
 app.get('/parks', handlePark);
+app.get('/movies', handleMovies);
+app.get('/yelp' , handleYelp);
+
 app.get('*', notFoundRouteHandler);
 app.use(errorHandler);
 
@@ -102,6 +105,44 @@ function handlePark(req, res) {
         })
 }
 
+function handleMovies(req, res) {
+    let key = process.env.MOVIES_KEY;
+    let city = req.query.search_query;
+    let url = `https://api.themoviedb.org/3/search/movie/?api_key=${key}&query=${city}`;
+
+    superagent.get(url)
+        .then(movieData => {
+            let movies = movieData.body.results.map(val => {
+                return new Movie(val);
+            })
+            res.status(200).send(movies);
+        })
+        .catch(() => {
+            res.status(500).send('Sorry there is something wrong!!');
+        })
+}
+
+function handleYelp (req ,res){
+    let key = process.env.YELP_KEY;
+    let city = req.query.search_query;
+    const page = req.query.page;
+    const pageNum = 5;
+    const start = ((page -1)* pageNum +1);
+    let url  = `https://api.yelp.com/v3/businesses/search?location=${city}&limit=${pageNum}&offset=${start}`;
+
+    superagent.get(url)
+    .set({ "Authorization": `Bearer ${key}` })
+    .then(yelpData =>{
+        let yelpArr = yelpData.body.businesses.map(element =>{
+            return new Yelp (element);
+    })
+    res.status(200).send(yelpArr);
+})
+    .catch(() => {
+        res.status(500).send('There is something wrong!!');
+    })
+}
+
 function Location(city, geoData) {
     this.search_query = city;
     this.formatted_query = geoData[0].display_name;
@@ -119,6 +160,24 @@ function Park(data) {
     this.address = Object.values(data.addresses[0]).join(' ');
     this.fee = data.entranceFees[0].cost || '0.00';
     this.description = data.description;
+    this.url = data.url;
+}
+
+function Movie(movie) {
+    this.title = movie.title;
+    this.overview = movie.overview;
+    this.average_votes = movie.vote_average;
+    this.total_votes = movie.vote_count;
+    this.image_url =  `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+    this.popularity = movie.popularity;
+    this.released_on = movie.released_on;
+}
+
+function Yelp (data) {
+    this.name = data.name;
+    this.image_url = data.image_url;
+    this.price = data.price;
+    this.rating = data.rating;
     this.url = data.url;
 }
 
