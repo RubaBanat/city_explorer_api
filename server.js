@@ -91,7 +91,7 @@ function handlerWeather(req, res) {
 function handlePark(req, res) {
     let key = process.env.PARK_KEY;
     let city = req.query.search_query;
-    let url = `https://developer.nps.gov/api/v1/parks?limit=3&q=${city}&api_key=${key}`;
+    let url = `https://developer.nps.gov/api/v1/parks?limit=6&q=${city}&api_key=${key}`;
 
     superagent.get(url)
         .then(parkData => {
